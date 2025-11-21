@@ -2,6 +2,8 @@ App Pause/Resume
 
 A small Windows utility to suspend and resume a target process using a global hotkey or via the system tray.
 
+<img width="454" height="359" alt="Screenshot 2025-11-21 175036" src="https://github.com/user-attachments/assets/c34b9351-bb40-4927-a2e7-8bae3659b5af" />
+
 Requirements:
 - Run as Administrator
 
