@@ -1,0 +1,30 @@
+# Byte-compiled / cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribution / build
+build/
+dist/
+*.spec
+*.egg-info/
+*.exe
+*.pyz
+*.toc
+localpycs/
+
+# Virtual environments
+venv/
+.env
+.venv/
+
+# Editor / OS files
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Logs and config
+*.log
+.app_pause_resume_config.json

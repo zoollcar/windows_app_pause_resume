@@ -1,0 +1,5 @@
+keyboard
+psutil
+PyQt5
+pystray
+Pillow
