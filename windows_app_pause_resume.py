@@ -2,7 +2,6 @@ import keyboard
 import psutil
 import ctypes
 import sys
-import threading
 import json
 from pathlib import Path
 from PyQt5.QtWidgets import (
@@ -10,10 +9,8 @@ from PyQt5.QtWidgets import (
     QLabel, QLineEdit, QPushButton, QComboBox, QDialog, QMessageBox,
     QSystemTrayIcon, QMenu, QKeySequenceEdit
 )
-from PyQt5.QtGui import QIcon, QColor
+from PyQt5.QtGui import QIcon, QColor, QPixmap, QPainter
 from PyQt5.QtCore import Qt, QTimer, QEvent
-from pystray import Icon, Menu, MenuItem
-from PIL import Image, ImageDraw
 import os
 
 # =====================
@@ -309,37 +306,65 @@ class HotkeyDialog(QDialog):
 # Tray Icon with pystray
 # =====================
 def create_tray_icon(main_window, controller, app):
-    def on_quit(icon, item):
-        try:
-            icon.stop()
-        except:
-            pass
-        # Use QApplication quit instead of sys.exit to properly shut down Qt
-        app.quit()
-    
-    def on_show(icon, item):
+    """Create a Qt system tray icon and return the `QSystemTrayIcon` instance.
+
+    This keeps all GUI operations in the main thread and avoids freezes
+    caused by calling Qt methods from other threads.
+    """
+    tray_icon = QSystemTrayIcon(main_window)
+
+    # Create a simple pixmap icon
+    pixmap = QPixmap(64, 64)
+    pixmap.fill(QColor(73, 109, 137))
+    painter = QPainter(pixmap)
+    painter.setPen(QColor(255, 255, 255))
+    painter.drawRect(16, 16, 32, 32)
+    painter.drawText(20, 40, "PS")
+    painter.end()
+
+    tray_icon.setIcon(QIcon(pixmap))
+    tray_icon.setToolTip("Application Pause/Resume")
+
+    menu = QMenu()
+
+    def show_main():
         main_window.show()
         main_window.raise_()
         main_window.activateWindow()
-    
-    def on_toggle(icon, item):
+
+    def tray_toggle():
         if main_window.controller.current_process:
-            main_window.controller.toggle()
-    
-    # Create a simple icon image
-    image = Image.new('RGB', (64, 64), color=(73, 109, 137))
-    draw = ImageDraw.Draw(image)
-    draw.rectangle([16, 16, 48, 48], fill=(255, 255, 255))
-    draw.text((20, 24), "PS", fill=(0, 0, 0))
-    
-    menu = Menu(
-        MenuItem("Show", on_show),
-        MenuItem("Toggle Pause/Resume", on_toggle),
-        MenuItem("Quit", on_quit)
-    )
-    
-    icon = Icon("App Pause Resume", image, menu=menu)
-    icon.run()
+            success, message = main_window.controller.toggle()
+            # Update UI status
+            try:
+                main_window.status_label.setText(message)
+            except:
+                pass
+
+    def tray_quit():
+        tray_icon.hide()
+        app.quit()
+
+    show_action = menu.addAction("Show")
+    show_action.triggered.connect(show_main)
+
+    toggle_action = menu.addAction("Toggle Pause/Resume")
+    toggle_action.triggered.connect(tray_toggle)
+
+    quit_action = menu.addAction("Quit")
+    quit_action.triggered.connect(tray_quit)
+
+    tray_icon.setContextMenu(menu)
+
+    # Single-click shows the main window
+    def activated(reason):
+        if reason == QSystemTrayIcon.Trigger:
+            show_main()
+
+    tray_icon.activated.connect(activated)
+    tray_icon.show()
+
+    return tray_icon
 
 # =====================
 # Main Execution
@@ -350,13 +375,9 @@ if __name__ == "__main__":
     controller = ProcessController()
     main_window = MainWindow(controller)
     
-    # Start tray icon in separate thread
-    tray_thread = threading.Thread(
-        target=create_tray_icon,
-        args=(main_window, controller, app),
-        daemon=True
-    )
-    tray_thread.start()
-    
+    # Create tray icon using Qt (runs in main thread) and keep a reference
+    tray_icon = create_tray_icon(main_window, controller, app)
+    main_window.tray_icon = tray_icon
+
     main_window.show()
     sys.exit(app.exec_())
